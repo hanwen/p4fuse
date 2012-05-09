@@ -6,12 +6,12 @@ package main
 
 /* TODO
 
- - symlinks.
- - expose md5 as xattr.
- - head symlink.
+- symlinks.
+- expose md5 as xattr.
+- head symlink.
 
 */
-	
+
 import (
 	"crypto"
 	"fmt"
@@ -19,20 +19,20 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"strconv"
-	
+	"strings"
+
 	"github.com/hanwen/go-fuse/fuse"
 
-	"p4fuse/p4"
 	_ "crypto/md5"
+	"p4fuse/p4"
 )
 
 type P4Fs struct {
 	fuse.DefaultNodeFileSystem
 	backingDir string
-	root *p4Root
-	p4 *p4.Conn
+	root       *p4Root
+	p4         *p4.Conn
 }
 
 // Creates a new P4FS
@@ -46,9 +46,12 @@ func NewP4Fs(conn *p4.Conn, backingDir string) *P4Fs {
 	return fs
 }
 
-
 func (fs *P4Fs) Root() fuse.FsNode {
 	return fs.root
+}
+
+func (fs *P4Fs) OnMount(conn *fuse.FileSystemConnector) {
+	fs.root.Inode().AddChild("head", fs.root.Inode().New(false, &p4Link{fs: fs}))
 }
 
 func (fs *P4Fs) newFolder(path string, change int) *p4Folder {
@@ -60,11 +63,44 @@ func (fs *P4Fs) newFile(st *p4.Stat) *p4File {
 	f := &p4File{fs: fs, stat: *st}
 	return f
 }
+
 ////////////////
+type p4Link struct {
+	fuse.DefaultFsNode
+	fs *P4Fs
+}
+
+func (f *p4Link) Deletable() bool {
+	return false
+}
+
+func (f *p4Link) GetAttr(file fuse.File, c *fuse.Context) (*fuse.Attr, fuse.Status) {
+	return &fuse.Attr{Mode: fuse.S_IFLNK}, fuse.OK
+}
+
+func (f *p4Link) Readlink(c *fuse.Context) ([]byte, fuse.Status) {
+	r, err := f.fs.p4.Changes([]string{"-s", "submitted", "-m1"})
+	if err != nil {
+		log.Printf("p4.Changes: %v", err)
+		return nil, fuse.EIO
+	}
+
+	ch := r[0].(*p4.Change)
+	return []byte(fmt.Sprintf("%d", ch.Change)), fuse.OK
+}
 
 type p4Root struct {
 	fuse.DefaultFsNode
 	fs *P4Fs
+
+	link *p4Link
+}
+
+func (f *p4Root) OpenDir(context *fuse.Context) (stream chan fuse.DirEntry, status fuse.Status) {
+	stream = make(chan fuse.DirEntry, 1)
+	stream <- fuse.DirEntry{Name: "head", Mode: fuse.S_IFLNK}
+	close(stream)
+	return stream, fuse.OK
 }
 
 func (r *p4Root) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, node fuse.FsNode, code fuse.Status) {
@@ -80,24 +116,17 @@ func (r *p4Root) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, node
 	return a, node, fuse.OK
 }
 
-func (f *p4Root) OpenDir(context *fuse.Context) (stream chan fuse.DirEntry, status fuse.Status) {
-	stream = make(chan fuse.DirEntry, 1)
-	close(stream)
-	return stream, fuse.OK
-}
-
 ////////////////
-
 
 type p4Folder struct {
 	fuse.DefaultFsNode
-	change  int
-	path string
-	fs   *P4Fs
+	change int
+	path   string
+	fs     *P4Fs
 
 	// nil means they haven't been fetched yet.
-	files    map[string]*p4.Stat
-	folders  map[string]bool
+	files   map[string]*p4.Stat
+	folders map[string]bool
 }
 
 func (f *p4Folder) OpenDir(context *fuse.Context) (stream chan fuse.DirEntry, status fuse.Status) {
@@ -105,19 +134,19 @@ func (f *p4Folder) OpenDir(context *fuse.Context) (stream chan fuse.DirEntry, st
 		return nil, fuse.EIO
 	}
 	stream = make(chan fuse.DirEntry, len(f.files)+len(f.folders))
-	
+
 	for n, _ := range f.files {
 		mode := fuse.S_IFREG | 0644
-		stream <- fuse.DirEntry{Name: n, Mode: uint32(mode)}		
+		stream <- fuse.DirEntry{Name: n, Mode: uint32(mode)}
 	}
 	for n, _ := range f.folders {
 		mode := fuse.S_IFDIR | 0755
-		stream <- fuse.DirEntry{Name: n, Mode: uint32(mode)}		
+		stream <- fuse.DirEntry{Name: n, Mode: uint32(mode)}
 	}
 	close(stream)
 	return stream, fuse.OK
 }
-		
+
 func (f *p4Folder) GetAttr(file fuse.File, c *fuse.Context) (*fuse.Attr, fuse.Status) {
 	return &fuse.Attr{
 		Mode: fuse.S_IFDIR | 0755,
@@ -132,20 +161,20 @@ func (f *p4Folder) fetch() bool {
 	if f.files != nil {
 		return true
 	}
-	
+
 	var err error
 	path := "//" + f.path
 	if !strings.HasSuffix(path, "/") {
 		path += "/"
 	}
 	path += fmt.Sprintf("*@%d", f.change)
-	
+
 	folders, err := f.fs.p4.Dirs([]string{path})
 	if err != nil {
 		log.Printf("fetch: %v", err)
 		return false
 	}
-	files, err  := f.fs.p4.Fstat([]string{path})
+	files, err := f.fs.p4.Fstat([]string{path})
 	if err != nil {
 		log.Printf("fetch: %v", err)
 		return false
@@ -158,7 +187,7 @@ func (f *p4Folder) fetch() bool {
 			f.files[base] = stat
 		}
 	}
-	
+
 	f.folders = map[string]bool{}
 	for _, r := range folders {
 		if dir, ok := r.(*p4.Dir); ok {
@@ -166,13 +195,13 @@ func (f *p4Folder) fetch() bool {
 			f.folders[base] = true
 		}
 	}
-	
+
 	return true
 }
 
 func (f *p4Folder) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, node fuse.FsNode, code fuse.Status) {
 	f.fetch()
-	
+
 	if st := f.files[name]; st != nil {
 		node = f.fs.newFile(st)
 	} else if f.folders[name] {
@@ -180,27 +209,26 @@ func (f *p4Folder) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, no
 	} else {
 		return nil, nil, fuse.ENOENT
 	}
-	
+
 	f.Inode().AddChild(name, f.Inode().New(true, node))
 
 	a, _ := node.GetAttr(nil, context)
 	return a, node, fuse.OK
 }
 
-	
 ////////////////
 
 type p4File struct {
 	fuse.DefaultFsNode
-	stat p4.Stat
-	fs *P4Fs
+	stat    p4.Stat
+	fs      *P4Fs
 	backing string
 }
 
 func (f *p4File) GetAttr(file fuse.File, c *fuse.Context) (*fuse.Attr, fuse.Status) {
 	return &fuse.Attr{
-		Size: uint64(f.stat.FileSize),
-		Mode: fuse.S_IFREG | 0644,
+		Size:  uint64(f.stat.FileSize),
+		Mode:  fuse.S_IFREG | 0644,
 		Mtime: uint64(f.stat.HeadTime),
 	}, fuse.OK
 }
@@ -238,10 +266,10 @@ func (f *p4File) Deletable() bool {
 }
 
 func (n *p4File) Open(flags uint32, context *fuse.Context) (file fuse.File, code fuse.Status) {
-	if flags & fuse.O_ANYWRITE != 0 {
+	if flags&fuse.O_ANYWRITE != 0 {
 		return nil, fuse.EROFS
 	}
-	
+
 	n.fetch()
 	f, err := os.OpenFile(n.backing, int(flags), 0644)
 	if err != nil {

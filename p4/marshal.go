@@ -1,4 +1,5 @@
 package p4
+
 import (
 	"encoding/binary"
 	"fmt"
@@ -18,6 +19,7 @@ func decodeInt(r io.Reader) (int32, error) {
 }
 
 var NoneObject interface{}
+
 func init() {
 	l := 1
 	NoneObject = &l
@@ -47,7 +49,7 @@ func Decode(r io.Reader) (interface{}, error) {
 				return nil, err
 			}
 			dest = append(dest, v)
-		}		
+		}
 		// list
 	case '{':
 		dest := make(map[interface{}]interface{})
@@ -89,5 +91,4 @@ func Decode(r io.Reader) (interface{}, error) {
 	}
 
 	return nil, fmt.Errorf("unsupported type code %c", t[0])
-}	
-
+}

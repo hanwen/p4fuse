@@ -6,10 +6,10 @@ import (
 )
 
 func TestMarshalInt(t *testing.T) {
-	in :=  "i\x01\x00\x00\x00"
+	in := "i\x01\x00\x00\x00"
 	out, err := Decode(bytes.NewBufferString(in))
 	if err != nil {
-		t.Fatalf("Decode err %v",err)
+		t.Fatalf("Decode err %v", err)
 	}
 	iout, ok := out.(int32)
 	if !ok {
@@ -21,10 +21,10 @@ func TestMarshalInt(t *testing.T) {
 }
 
 func TestMarshalBool(t *testing.T) {
-	in :=  "T"
+	in := "T"
 	out, err := Decode(bytes.NewBufferString(in))
 	if err != nil {
-		t.Fatalf("Decode err %v",err)
+		t.Fatalf("Decode err %v", err)
 	}
 	iout, ok := out.(bool)
 	if !ok {
@@ -39,7 +39,7 @@ func TestMarshalDict(t *testing.T) {
 	in := "{i\x01\x00\x00\x00i\x01\x00\x00\x00i\x02\x00\x00\x00i\x02\x00\x00\x000"
 	out, err := Decode(bytes.NewBufferString(in))
 	if err != nil {
-		t.Fatalf("Decode err %v",err)
+		t.Fatalf("Decode err %v", err)
 	}
 	iout, ok := out.(map[interface{}]interface{})
 	if !ok {
@@ -54,7 +54,7 @@ func TestMarshalStr(t *testing.T) {
 	in := "t\x05\x00\x00\x00hello"
 	out, err := Decode(bytes.NewBufferString(in))
 	if err != nil {
-		t.Fatalf("Decode err %v",err)
+		t.Fatalf("Decode err %v", err)
 	}
 	iout, ok := out.(string)
 	if !ok {
@@ -70,7 +70,7 @@ func xTestMarshal(t *testing.T) {
 	in := "{i\x01\x00\x00\x00[\x03\x00\x00\x00i\x01\x00\x00\x00i\x02\x00\x00\x00i\x03\x00\x00\x00t\x03\x00\x00\x00keyt\x03\x00\x00\x00val0"
 	out, err := Decode(bytes.NewBufferString(in))
 	if err != nil {
-		t.Fatalf("Decode err %v",err)
+		t.Fatalf("Decode err %v", err)
 	}
 
 	dict := out.(map[interface{}]interface{})
