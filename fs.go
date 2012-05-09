@@ -152,7 +152,7 @@ func (f *p4Folder) fetch() bool {
 
 	f.files = map[string]*Stat{}
 	for _, r := range files {
-		if stat, ok := r.(*Stat); ok {
+		if stat, ok := r.(*Stat); ok && stat.HeadAction != "delete" {
 			_, base := filepath.Split(stat.DepotFile)
 			f.files[base] = stat
 		}
