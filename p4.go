@@ -29,7 +29,7 @@ func (p *P4) Output(args []string) ([]byte, error) {
 		Path: p.Binary,
 		Args: append([]string{p.Binary, "-p", p.Address}, args...),
 	}
-	log.Println("Running", cmd.Args)
+	log.Println("running", cmd.Args)
 	return cmd.Output()
 }
 
@@ -72,7 +72,7 @@ func (p *P4) Fstat(paths []string) (stats map[string]*Stat, err error) {
 		}
 		parts := bytes.SplitN(r.Value, []byte{' '}, 2)
 		if len(parts) != 2 {
-			log.Printf("Format error: %q", r.Value)
+			log.Printf("format error: %q", r.Value)
 			continue
 		}
 			
@@ -104,7 +104,7 @@ func (p *P4) Fstat(paths []string) (stats map[string]*Stat, err error) {
 		case "digest":
 			st.Digest = val
 		default:
-			log.Printf("ignoring unknown key %q", key)
+			log.Printf("ignoring unknown Stat key %q", key)
 		}
 	}
 

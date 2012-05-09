@@ -140,13 +140,11 @@ func (f *p4Folder) fetch() bool {
 	path += fmt.Sprintf("*@%d", f.change)
 	
 	folders, err := f.fs.p4.Dirs([]string{path})
-	log.Println("folders", folders, err)
 	if err != nil {
 		log.Println("fetch: %v", err)
 		return false
 	}
 	files, err  := f.fs.p4.Fstat([]string{path})
-	log.Println("dirs", files, err)
 	if err != nil {
 		log.Println("fetch: %v", err)
 		return false
