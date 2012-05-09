@@ -20,6 +20,10 @@ type Conn struct {
 	Binary  string
 }
 
+func NewConn() *Conn {
+	return &Conn{Binary: "p4", Address: "localhost:1666"}
+}
+
 type TagLine struct {
 	Tag   string
 	Value []byte
@@ -27,8 +31,12 @@ type TagLine struct {
 
 // Output runs p4 and captures stdout.
 func (p *Conn) Output(args []string) ([]byte, error) {
+	b := p.Binary
+	if !strings.Contains(b, "/") {
+		b, _ = exec.LookPath(b)
+	}
 	cmd := exec.Cmd{
-		Path: p.Binary,
+		Path: b,
 		Args: append([]string{p.Binary, "-p", p.Address}, args...),
 	}
 	log.Println("running", cmd.Args)
@@ -119,7 +127,6 @@ func interpretResult(in map[interface{}]interface{}, command string) Result {
 		c.Time = int(t)
 		return &c
 	default:
-
 		log.Panicf("unknown code %q", command)
 	}
 	return nil
