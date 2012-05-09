@@ -141,25 +141,29 @@ func (f *p4Folder) fetch() bool {
 	
 	folders, err := f.fs.p4.Dirs([]string{path})
 	if err != nil {
-		log.Println("fetch: %v", err)
+		log.Printf("fetch: %v", err)
 		return false
 	}
 	files, err  := f.fs.p4.Fstat([]string{path})
 	if err != nil {
-		log.Println("fetch: %v", err)
+		log.Printf("fetch: %v", err)
 		return false
 	}
 
 	f.files = map[string]*Stat{}
-	for _, stat := range files {
-		_, base := filepath.Split(stat.DepotFile)
-		f.files[base] = stat
+	for _, r := range files {
+		if stat, ok := r.(*Stat); ok {
+			_, base := filepath.Split(stat.DepotFile)
+			f.files[base] = stat
+		}
 	}
 	
 	f.folders = map[string]bool{}
-	for _, dir := range folders {
-		_, base := filepath.Split(dir)
-		f.folders[base] = true
+	for _, r := range folders {
+		if dir, ok := r.(*Dir); ok {
+			_, base := filepath.Split(dir.Dir)
+			f.folders[base] = true
+		}
 	}
 	
 	return true

@@ -34,16 +34,8 @@ func (p *P4) Output(args []string) ([]byte, error) {
 	return cmd.Output()
 }
 
-func toStringKeyed(in map[interface{}]interface{}) map[string]interface{} {
-	out := map[string]interface{}{}
-	for k, v := range in {
-		out[k.(string)] = v
-	}
-	return out
-}
-
 // Runs p4 with -zTAG -s and captures the result lines.
-func (p *P4) RunMarshaled(args []string) (result []map[string]interface{}, err error) {
+func (p *P4) RunMarshaled(args []string) (result []Result, err error) {
 	out, err := p.Output(append([]string{"-G"}, args...))
 	r := bytes.NewBuffer(out)
 	for {
@@ -54,103 +46,68 @@ func (p *P4) RunMarshaled(args []string) (result []map[string]interface{}, err e
 		if err != nil {
 			return nil, err
 		}
-		k := toStringKeyed(v.(map[interface{}]interface{}))
-		result = append(result, k)
+		asMap, ok := v.(map[interface{}]interface{})
+		if !ok {
+			return nil, fmt.Errorf("format err: p4 marshaled %v", v)
+		}
+		result = append(result, interpretResult(asMap))
 	}
+
+	if len(result) > 0 {
+		err = nil
+	}
+	
 	return result, err
 }
 	
-func (p *P4) RunTagged(args []string) (result []TagLine, err error) {
-	out, err := p.Output(append([]string{"-s", "-Ztag"}, args...))
-
-	lines := bytes.Split(out, []byte{'\n'})
-	for _, ln := range lines {
-		idx := bytes.IndexByte(ln, ':')
-		if idx < 0 {
-			return nil, fmt.Errorf("format error %q", ln) 
-		}
-		tag := string(ln[:idx])
-		val := ln[idx+2:]
-		result = append(result, TagLine{
-			Tag: tag,
-			Value: val,
-		})
-		if tag == "exit" {
-			// Don't return error; the invocation was
-			// successful.
-			return result, nil
-		}
+func interpretResult(in map[interface{}]interface{}) Result {
+	imap := map[string]interface{}{}
+	for k, v := range in {
+		imap[k.(string)] = v
 	}
-	return nil, err
+	code  := imap["code"].(string)
+	switch code {
+	case "stat":
+		r := map[string]string{}
+		for k, v := range imap {
+			r[k] = v.(string)
+		}
+
+		if r["dir"] != "" {
+			return &Dir{Dir: r["dir"]}
+		}
+		st := Stat{}
+		st.DepotFile = r["depotFile"]
+		st.HeadAction = r["headAction"]
+		st.Digest = r["digest"]
+		st.HeadType = r["headType"]
+		st.HeadTime, _ = strconv.ParseInt(r["headTime"], 10, 64)
+		st.HeadRev, _ = strconv.ParseInt(r["headRev"], 10, 64)
+		st.HeadChange, _ = strconv.ParseInt(r["headChange"], 10, 64)
+		st.HeadModTime, _ = strconv.ParseInt(r["headModTime"], 10, 64)
+		st.FileSize, _ = strconv.ParseInt(r["fileSize"], 10, 64)
+		return &st
+	case "error":
+		e := Error{}
+		e.Severity = int(imap["severity"].(int32))
+		e.Generic = int(imap["generic"].(int32))
+		e.Data = imap["data"].(string)
+		return &e
+	default:
+		log.Panicf("unknown code %q", code)
+	}
+	return nil
 }
 
-func (p *P4) Fstat(paths []string) (stats map[string]*Stat, err error) {
-	stats = map[string]*Stat{}
-	res, err := p.RunTagged(
+func (p *P4) Fstat(paths []string) (results []Result, err error) {
+	r, err := p.RunMarshaled(
 		append([]string{"fstat", "-Ol"}, paths...))
-	if err != nil {
-		return nil, err
-	}
-	st := &Stat{}
-	for _, r := range res {
-		if r.Tag != "info1" {
-			continue
-		}
-		parts := bytes.SplitN(r.Value, []byte{' '}, 2)
-		if len(parts) != 2 {
-			log.Printf("format error: %q", r.Value)
-			continue
-		}
-			
-		key := string(parts[0])
-		val := string(parts[1])
-
-		intVal, _ := strconv.ParseInt(val, 10, 64)
-		switch key {
-		case "depotFile":
-			if st.DepotFile != "" {
-				stats[st.DepotFile] = st
-			}
-			st = &Stat{}
-			st.DepotFile = val
-		case "headAction":
-			st.HeadAction = val
-		case "headType":
-			st.HeadType = val
-		case "headTime":
-			st.HeadTime = intVal
-		case "headRev":
-			st.HeadRev = intVal
-		case "headChange":
-			st.HeadChange = intVal
-		case "headModTime":
-			st.HeadModTime = intVal
-		case "fileSize":
-			st.FileSize = intVal
-		case "digest":
-			st.Digest = val
-		default:
-			log.Printf("ignoring unknown Stat key %q", key)
-		}
-	}
-
-	return stats, nil
+	return r, err
 }
 
-func (p *P4) Dirs(paths []string) (dirs []string, err error) {
-	res, err := p.RunTagged(
+func (p *P4) Dirs(paths []string) ([]Result, error) {
+	return p.RunMarshaled(
 		append([]string{"dirs"}, paths...))
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range res {
-		parts := bytes.SplitN(r.Value, []byte{' '}, 2)
-		if string(parts[0]) == "dir" {
-			// what happens if path has a \n ?
-			dirs = append(dirs, string(parts[1]))
-		}
-	}
-	return dirs, nil
 }
 
 func (p *P4) Print(path string) (content []byte, err error) {
@@ -163,6 +120,20 @@ func (p *P4) Print(path string) (content []byte, err error) {
 }
 
 ////////////////
+type Result interface {
+	String() string
+}
+	
+type Error struct {
+	Generic int
+	Severity int
+	Data string
+}
+
+func (e *Error) String() string {
+	return fmt.Sprintf("error %d(%d): %s", e.Generic, e.Severity, e.Data)
+}	
+
 // Stat has the data for a single file revision.
 type Stat struct {
 	DepotFile string
@@ -179,4 +150,12 @@ type Stat struct {
 func (f *Stat) String() string {
 	return fmt.Sprintf("%s#%d - change %d (%s)",
 		f.DepotFile, f.HeadRev, f.HeadChange, f.HeadType)
+}
+
+type Dir struct {
+	Dir string
+}
+
+func (f *Dir) String() string {
+	return fmt.Sprintf("%s/", f.Dir)
 }
