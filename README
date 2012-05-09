@@ -1,0 +1,10 @@
+
+This is a small FUSE file system that exposes a P4 server as a file
+system.
+
+  ./p4fs -fs-debug -p4-binary /usr/bin/p4 /tmp/mount-p4
+  cd /tmp/mount-p4
+  ls -l 730/depot/Jam/MAIN/src
+  cat 730/depot/Jam/MAIN/src/regexp.h
+
+
