@@ -7,6 +7,7 @@ package main
 import (
 	"os/exec"
 	"log"
+	"io"
 	"bytes"
 	"fmt"
 	"strconv"
@@ -33,7 +34,32 @@ func (p *P4) Output(args []string) ([]byte, error) {
 	return cmd.Output()
 }
 
+func toStringKeyed(in map[interface{}]interface{}) map[string]interface{} {
+	out := map[string]interface{}{}
+	for k, v := range in {
+		out[k.(string)] = v
+	}
+	return out
+}
+
 // Runs p4 with -zTAG -s and captures the result lines.
+func (p *P4) RunMarshaled(args []string) (result []map[string]interface{}, err error) {
+	out, err := p.Output(append([]string{"-G"}, args...))
+	r := bytes.NewBuffer(out)
+	for {
+		v, err := Decode(r)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		k := toStringKeyed(v.(map[interface{}]interface{}))
+		result = append(result, k)
+	}
+	return result, err
+}
+	
 func (p *P4) RunTagged(args []string) (result []TagLine, err error) {
 	out, err := p.Output(append([]string{"-s", "-Ztag"}, args...))
 
