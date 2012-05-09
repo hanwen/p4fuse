@@ -43,7 +43,7 @@ func (p *Conn) Output(args []string) ([]byte, error) {
 	return cmd.Output()
 }
 
-// Runs p4 with -zTAG -s and captures the result lines.
+// Runs p4 with -G and captures the result lines.
 func (p *Conn) RunMarshaled(command string, args []string) (result []Result, err error) {
 	out, err := p.Output(append([]string{"-G", command}, args...))
 	r := bytes.NewBuffer(out)
