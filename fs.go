@@ -8,7 +8,6 @@ package main
 
 - symlinks.
 - expose md5 as xattr.
-- head symlink.
 
 */
 
