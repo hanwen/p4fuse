@@ -10,6 +10,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+
+	"p4fuse/p4"
 )
 
 func main() {
@@ -23,12 +25,12 @@ func main() {
 	}
 	mountpoint := flag.Arg(0)
 
-	p4 := &P4{Binary: *p4binary, Address: *p4port}
+	p4conn := &p4.Conn{Binary: *p4binary, Address: *p4port}
 	backingDir, err := ioutil.TempDir("", "p4fs")
 	if err != nil {
 		log.Fatalf("TempDir failed: %v", err)
 	}
-	fs := NewP4Fs(p4, backingDir)
+	fs := NewP4Fs(p4conn, backingDir)
 	conn := fuse.NewFileSystemConnector(fs, fuse.NewFileSystemOptions())
 	rawFs := fuse.NewLockingRawFileSystem(conn)
 

@@ -23,7 +23,8 @@ import (
 	"strconv"
 	
 	"github.com/hanwen/go-fuse/fuse"
-	
+
+	"p4fuse/p4"
 	_ "crypto/md5"
 )
 
@@ -31,13 +32,13 @@ type P4Fs struct {
 	fuse.DefaultNodeFileSystem
 	backingDir string
 	root *p4Root
-	p4 *P4
+	p4 *p4.Conn
 }
 
 // Creates a new P4FS
-func NewP4Fs(p4 *P4, backingDir string) *P4Fs {
+func NewP4Fs(conn *p4.Conn, backingDir string) *P4Fs {
 	fs := &P4Fs{
-		p4: p4,
+		p4: conn,
 	}
 
 	fs.backingDir = backingDir
@@ -55,7 +56,7 @@ func (fs *P4Fs) newFolder(path string, change int) *p4Folder {
 	return f
 }
 
-func (fs *P4Fs) newFile(st *Stat) *p4File {
+func (fs *P4Fs) newFile(st *p4.Stat) *p4File {
 	f := &p4File{fs: fs, stat: *st}
 	return f
 }
@@ -95,7 +96,7 @@ type p4Folder struct {
 	fs   *P4Fs
 
 	// nil means they haven't been fetched yet.
-	files    map[string]*Stat
+	files    map[string]*p4.Stat
 	folders  map[string]bool
 }
 
@@ -150,9 +151,9 @@ func (f *p4Folder) fetch() bool {
 		return false
 	}
 
-	f.files = map[string]*Stat{}
+	f.files = map[string]*p4.Stat{}
 	for _, r := range files {
-		if stat, ok := r.(*Stat); ok && stat.HeadAction != "delete" {
+		if stat, ok := r.(*p4.Stat); ok && stat.HeadAction != "delete" {
 			_, base := filepath.Split(stat.DepotFile)
 			f.files[base] = stat
 		}
@@ -160,7 +161,7 @@ func (f *p4Folder) fetch() bool {
 	
 	f.folders = map[string]bool{}
 	for _, r := range folders {
-		if dir, ok := r.(*Dir); ok {
+		if dir, ok := r.(*p4.Dir); ok {
 			_, base := filepath.Split(dir.Dir)
 			f.folders[base] = true
 		}
@@ -191,7 +192,7 @@ func (f *p4Folder) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, no
 
 type p4File struct {
 	fuse.DefaultFsNode
-	stat Stat
+	stat p4.Stat
 	fs *P4Fs
 	backing string
 }

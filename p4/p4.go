@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package p4
 
 import (
 	"os/exec"
@@ -13,8 +13,8 @@ import (
 	"strconv"
 )
 
-// P4 is an interface to the P4 command line client. 
-type P4 struct {
+// Conn is an interface to the Conn command line client. 
+type Conn struct {
 	Address string
 	Binary  string
 }
@@ -25,7 +25,7 @@ type TagLine struct {
 }
 
 // Output runs p4 and captures stdout.
-func (p *P4) Output(args []string) ([]byte, error) {
+func (p *Conn) Output(args []string) ([]byte, error) {
 	cmd := exec.Cmd{
 		Path: p.Binary,
 		Args: append([]string{p.Binary, "-p", p.Address}, args...),
@@ -35,7 +35,7 @@ func (p *P4) Output(args []string) ([]byte, error) {
 }
 
 // Runs p4 with -zTAG -s and captures the result lines.
-func (p *P4) RunMarshaled(args []string) (result []Result, err error) {
+func (p *Conn) RunMarshaled(args []string) (result []Result, err error) {
 	out, err := p.Output(append([]string{"-G"}, args...))
 	r := bytes.NewBuffer(out)
 	for {
@@ -99,18 +99,18 @@ func interpretResult(in map[interface{}]interface{}) Result {
 	return nil
 }
 
-func (p *P4) Fstat(paths []string) (results []Result, err error) {
+func (p *Conn) Fstat(paths []string) (results []Result, err error) {
 	r, err := p.RunMarshaled(
 		append([]string{"fstat", "-Ol"}, paths...))
 	return r, err
 }
 
-func (p *P4) Dirs(paths []string) ([]Result, error) {
+func (p *Conn) Dirs(paths []string) ([]Result, error) {
 	return p.RunMarshaled(
 		append([]string{"dirs"}, paths...))
 }
 
-func (p *P4) Print(path string) (content []byte, err error) {
+func (p *Conn) Print(path string) (content []byte, err error) {
 	out, err := p.Output([]string{"print", path})
 	if err != nil {
 		return nil, err

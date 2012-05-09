@@ -1,4 +1,4 @@
-package main
+package p4
 import (
 	"encoding/binary"
 	"fmt"
