@@ -95,11 +95,8 @@ type p4Root struct {
 	link *p4Link
 }
 
-func (f *p4Root) OpenDir(context *fuse.Context) (stream chan fuse.DirEntry, status fuse.Status) {
-	stream = make(chan fuse.DirEntry, 1)
-	stream <- fuse.DirEntry{Name: "head", Mode: fuse.S_IFLNK}
-	close(stream)
-	return stream, fuse.OK
+func (f *p4Root) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
+	return []fuse.DirEntry{{Name: "head", Mode: fuse.S_IFLNK}}, fuse.OK
 }
 
 func (r *p4Root) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, node fuse.FsNode, code fuse.Status) {
@@ -128,21 +125,20 @@ type p4Folder struct {
 	folders map[string]bool
 }
 
-func (f *p4Folder) OpenDir(context *fuse.Context) (stream chan fuse.DirEntry, status fuse.Status) {
+func (f *p4Folder) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
 	if !f.fetch() {
 		return nil, fuse.EIO
 	}
-	stream = make(chan fuse.DirEntry, len(f.files)+len(f.folders))
+	stream = make([]fuse.DirEntry, 0, len(f.files)+len(f.folders))
 
 	for n, _ := range f.files {
 		mode := fuse.S_IFREG | 0644
-		stream <- fuse.DirEntry{Name: n, Mode: uint32(mode)}
+		stream = append(stream,  fuse.DirEntry{Name: n, Mode: uint32(mode)})
 	}
 	for n, _ := range f.folders {
 		mode := fuse.S_IFDIR | 0755
-		stream <- fuse.DirEntry{Name: n, Mode: uint32(mode)}
+ 		stream = append(stream,fuse.DirEntry{Name: n, Mode: uint32(mode)})
 	}
-	close(stream)
 	return stream, fuse.OK
 }
 
