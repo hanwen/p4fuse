@@ -73,8 +73,9 @@ func (f *p4Link) Deletable() bool {
 	return false
 }
 
-func (f *p4Link) GetAttr(file fuse.File, c *fuse.Context) (*fuse.Attr, fuse.Status) {
-	return &fuse.Attr{Mode: fuse.S_IFLNK}, fuse.OK
+func (f *p4Link) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) (fuse.Status) {
+	out.Mode = fuse.S_IFLNK
+	return fuse.OK
 }
 
 func (f *p4Link) Readlink(c *fuse.Context) ([]byte, fuse.Status) {
@@ -99,17 +100,16 @@ func (f *p4Root) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, status 
 	return []fuse.DirEntry{{Name: "head", Mode: fuse.S_IFLNK}}, fuse.OK
 }
 
-func (r *p4Root) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, node fuse.FsNode, code fuse.Status) {
+func (r *p4Root) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node fuse.FsNode, code fuse.Status) {
 	cl, err := strconv.ParseInt(name, 10, 64)
 	if err != nil {
-		return nil, nil, fuse.ENOENT
+		return nil, fuse.ENOENT
 	}
 
 	node = r.fs.newFolder("", int(cl))
 	r.Inode().AddChild(name, r.Inode().New(true, node))
-
-	a, _ := node.GetAttr(nil, context)
-	return a, node, fuse.OK
+	node.GetAttr(out, nil, context)
+	return node, fuse.OK
 }
 
 ////////////////
@@ -142,10 +142,9 @@ func (f *p4Folder) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, statu
 	return stream, fuse.OK
 }
 
-func (f *p4Folder) GetAttr(file fuse.File, c *fuse.Context) (*fuse.Attr, fuse.Status) {
-	return &fuse.Attr{
-		Mode: fuse.S_IFDIR | 0755,
-	}, fuse.OK
+func (f *p4Folder) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) (fuse.Status) {
+	out.Mode = fuse.S_IFDIR | 0755
+	return fuse.OK
 }
 
 func (f *p4Folder) Deletable() bool {
@@ -194,7 +193,7 @@ func (f *p4Folder) fetch() bool {
 	return true
 }
 
-func (f *p4Folder) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, node fuse.FsNode, code fuse.Status) {
+func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node fuse.FsNode, code fuse.Status) {
 	f.fetch()
 
 	if st := f.files[name]; st != nil {
@@ -202,13 +201,13 @@ func (f *p4Folder) Lookup(name string, context *fuse.Context) (fi *fuse.Attr, no
 	} else if f.folders[name] {
 		node = f.fs.newFolder(filepath.Join(f.path, name), f.change)
 	} else {
-		return nil, nil, fuse.ENOENT
+		return nil, fuse.ENOENT
 	}
 
 	f.Inode().AddChild(name, f.Inode().New(true, node))
 
-	a, _ := node.GetAttr(nil, context)
-	return a, node, fuse.OK
+	node.GetAttr(out, nil, context)
+	return node, fuse.OK
 }
 
 ////////////////
@@ -220,12 +219,11 @@ type p4File struct {
 	backing string
 }
 
-func (f *p4File) GetAttr(file fuse.File, c *fuse.Context) (*fuse.Attr, fuse.Status) {
-	return &fuse.Attr{
-		Size:  uint64(f.stat.FileSize),
-		Mode:  fuse.S_IFREG | 0644,
-		Mtime: uint64(f.stat.HeadTime),
-	}, fuse.OK
+func (f *p4File) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) (fuse.Status) {
+	out.Mode = fuse.S_IFREG | 0644
+	out.Mtime = uint64(f.stat.HeadTime)
+	out.Size = uint64(f.stat.FileSize)
+	return fuse.OK
 }
 
 func (f *p4File) fetch() bool {
