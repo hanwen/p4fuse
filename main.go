@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime/pprof"
 
 	"p4fuse/p4"
 )
@@ -19,6 +20,7 @@ func main() {
 	p4port := flag.String("p4-server", "localhost:1666", "address for P4 server")
 	p4binary := flag.String("p4-binary", "p4", "binary for P4 commandline client")
 	backingDir := flag.String("backing", "", "directory to store file contents.")
+	profile := flag.String("profile", "", "record cpu profile.")
 	flag.Parse()
 
 	if len(flag.Args()) != 1 {
@@ -49,5 +51,16 @@ func main() {
 	conn.Debug = *fsdebug
 	mount.Debug = *fsdebug
 	log.Println("starting FUSE.")
+
+	if *profile != "" {
+		profFile, err := os.Create(*profile)
+		if err != nil {
+			log.Fatalf("os.Create: %v", err)
+		}
+		pprof.StartCPUProfile(profFile)
+		defer pprof.StopCPUProfile()
+	}
+
+
 	mount.Loop()
 }
