@@ -18,6 +18,7 @@ func main() {
 	fsdebug := flag.Bool("fs-debug", false, "switch on FS debugging")
 	p4port := flag.String("p4-server", "localhost:1666", "address for P4 server")
 	p4binary := flag.String("p4-binary", "p4", "binary for P4 commandline client")
+	backingDir := flag.String("backing", "", "directory to store file contents.")
 	flag.Parse()
 
 	if len(flag.Args()) != 1 {
@@ -27,12 +28,16 @@ func main() {
 
 	p4conn := &p4.Conn{Binary: *p4binary, Address: *p4port}
 
-	backingDir, err := ioutil.TempDir("", "p4fs")
-	if err != nil {
-		log.Fatalf("TempDir failed: %v", err)
+	if *backingDir == "" {
+		d, err := ioutil.TempDir("", "p4fs")
+		if err != nil {
+			log.Fatalf("TempDir failed: %v", err)
+		}
+		*backingDir = d
+		defer os.RemoveAll(d)
 	}
 
-	fs := NewP4Fs(p4conn, backingDir)
+	fs := NewP4Fs(p4conn, *backingDir)
 	conn := fuse.NewFileSystemConnector(fs, fuse.NewFileSystemOptions())
 	rawFs := fuse.NewLockingRawFileSystem(conn)
 
@@ -45,5 +50,4 @@ func main() {
 	mount.Debug = *fsdebug
 	log.Println("starting FUSE.")
 	mount.Loop()
-	os.RemoveAll(backingDir)
 }
