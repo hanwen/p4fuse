@@ -231,6 +231,14 @@ func (f *p4File) fetch() bool {
 		return true
 	}
 	id := fmt.Sprintf("%s#%d", f.stat.DepotFile, f.stat.HeadRev)
+	h := crypto.MD5.New()
+	h.Write([]byte(id))
+	dest := fmt.Sprintf("%s/%x", f.fs.backingDir, h.Sum(nil))
+
+	if _, err := os.Lstat(dest); err == nil {
+		f.backing = dest
+		return true
+	}
 	content, err := f.fs.p4.Print(id)
 	if err != nil {
 		log.Printf("p4 print error: %v", err)
@@ -246,9 +254,6 @@ func (f *p4File) fetch() bool {
 	tmp.Write(content)
 	tmp.Close()
 
-	h := crypto.MD5.New()
-	h.Write([]byte(id))
-	dest := fmt.Sprintf("%s/%x", f.fs.backingDir, h.Sum(nil))
 	os.Rename(tmp.Name(), dest)
 	f.backing = dest
 	return true
