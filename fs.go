@@ -46,6 +46,10 @@ func NewP4Fs(conn *p4.Conn, backingDir string) *P4Fs {
 	return fs
 }
 
+func (fs *P4Fs) String() string {
+	return "P4Fuse"
+}
+
 func (fs *P4Fs) Root() fuse.FsNode {
 	return fs.root
 }
