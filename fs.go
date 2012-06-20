@@ -73,7 +73,7 @@ func (f *p4Link) Deletable() bool {
 	return false
 }
 
-func (f *p4Link) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) (fuse.Status) {
+func (f *p4Link) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
 	out.Mode = fuse.S_IFLNK
 	return fuse.OK
 }
@@ -133,16 +133,16 @@ func (f *p4Folder) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, statu
 
 	for n, _ := range f.files {
 		mode := fuse.S_IFREG | 0644
-		stream = append(stream,  fuse.DirEntry{Name: n, Mode: uint32(mode)})
+		stream = append(stream, fuse.DirEntry{Name: n, Mode: uint32(mode)})
 	}
 	for n, _ := range f.folders {
 		mode := fuse.S_IFDIR | 0755
- 		stream = append(stream,fuse.DirEntry{Name: n, Mode: uint32(mode)})
+		stream = append(stream, fuse.DirEntry{Name: n, Mode: uint32(mode)})
 	}
 	return stream, fuse.OK
 }
 
-func (f *p4Folder) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) (fuse.Status) {
+func (f *p4Folder) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
 	out.Mode = fuse.S_IFDIR | 0755
 	return fuse.OK
 }
@@ -219,7 +219,7 @@ type p4File struct {
 	backing string
 }
 
-func (f *p4File) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) (fuse.Status) {
+func (f *p4File) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
 	out.Mode = fuse.S_IFREG | 0644
 	out.Mtime = uint64(f.stat.HeadTime)
 	out.Size = uint64(f.stat.FileSize)
