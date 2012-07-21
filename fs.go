@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/hanwen/go-fuse/fuse"
 
@@ -121,6 +122,7 @@ type p4Folder struct {
 	fs     *P4Fs
 
 	// nil means they haven't been fetched yet.
+	mu      sync.Mutex
 	files   map[string]*p4.Stat
 	folders map[string]bool
 }
@@ -152,6 +154,8 @@ func (f *p4Folder) Deletable() bool {
 }
 
 func (f *p4Folder) fetch() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.files != nil {
 		return true
 	}
@@ -214,8 +218,10 @@ func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (n
 
 type p4File struct {
 	fuse.DefaultFsNode
-	stat    p4.Stat
-	fs      *P4Fs
+	stat p4.Stat
+	fs   *P4Fs
+
+	mu      sync.Mutex
 	backing string
 }
 
@@ -227,14 +233,22 @@ func (f *p4File) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.S
 }
 
 func (f *p4File) fetch() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.backing != "" {
 		return true
 	}
 	id := fmt.Sprintf("%s#%d", f.stat.DepotFile, f.stat.HeadRev)
 	h := crypto.MD5.New()
 	h.Write([]byte(id))
-	dest := fmt.Sprintf("%s/%x", f.fs.backingDir, h.Sum(nil))
+	sum := fmt.Sprintf("%x", h.Sum(nil))
+	dir := filepath.Join(f.fs.backingDir, sum[:2])
+	_, err := os.Lstat(dir)
+	if os.IsNotExist(err) {
+		os.Mkdir(dir, 0700)
+	}
 
+	dest := fmt.Sprintf("%s/%x", dir, sum[2:])
 	if _, err := os.Lstat(dest); err == nil {
 		f.backing = dest
 		return true

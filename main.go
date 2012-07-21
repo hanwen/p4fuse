@@ -41,9 +41,8 @@ func main() {
 
 	fs := NewP4Fs(p4conn, *backingDir)
 	conn := fuse.NewFileSystemConnector(fs, fuse.NewFileSystemOptions())
-	rawFs := fuse.NewLockingRawFileSystem(conn)
 
-	mount := fuse.NewMountState(rawFs)
+	mount := fuse.NewMountState(conn)
 	if err := mount.Mount(mountpoint, nil); err != nil {
 		log.Fatalf("mount failed: %v", err)
 	}
