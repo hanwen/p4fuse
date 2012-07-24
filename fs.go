@@ -225,8 +225,19 @@ type p4File struct {
 	backing string
 }
 
+var modes = map[string]uint32{
+	"xtext": fuse.S_IFREG | 0755,
+	"xbinary": fuse.S_IFREG | 0755,
+	"kxtext": fuse.S_IFREG | 0755,
+}
+
 func (f *p4File) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
-	out.Mode = fuse.S_IFREG | 0644
+	if m, ok := modes[f.stat.HeadType]; ok {
+		out.Mode = m
+	} else {
+		out.Mode = fuse.S_IFREG | 0644
+	}
+
 	out.Mtime = uint64(f.stat.HeadTime)
 	out.Size = uint64(f.stat.FileSize)
 	return fuse.OK
