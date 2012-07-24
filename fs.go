@@ -6,7 +6,7 @@ package main
 
 /* TODO
 
-- symlinks.
+- readlink.
 - expose md5 as xattr.
 
 */
@@ -229,6 +229,7 @@ var modes = map[string]uint32{
 	"xtext": fuse.S_IFREG | 0755,
 	"xbinary": fuse.S_IFREG | 0755,
 	"kxtext": fuse.S_IFREG | 0755,
+	"symlink": fuse.S_IFLNK, 
 }
 
 func (f *p4File) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
