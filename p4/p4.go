@@ -14,14 +14,19 @@ import (
 	"strings"
 )
 
-// Conn is an interface to the Conn command line client. 
-type Conn struct {
+// Conn is an interface to the Conn command line client.
+
+type ConnOptions struct {
 	Address string
 	Binary  string
 }
 
-func NewConn() *Conn {
-	return &Conn{Binary: "p4", Address: "localhost:1666"}
+type Conn struct {
+	opts *ConnOptions
+}
+
+func NewConn(opts ConnOptions) *Conn {
+	return &Conn{&opts}
 }
 
 type TagLine struct {
@@ -31,14 +36,19 @@ type TagLine struct {
 
 // Output runs p4 and captures stdout.
 func (p *Conn) Output(args []string) ([]byte, error) {
-	b := p.Binary
+	b := p.opts.Binary
 	if !strings.Contains(b, "/") {
 		b, _ = exec.LookPath(b)
 	}
 	cmd := exec.Cmd{
 		Path: b,
-		Args: append([]string{p.Binary, "-p", p.Address}, args...),
+		Args: []string{p.opts.Binary},
 	}
+	if p.opts.Address != "" {
+		cmd.Args = append(cmd.Args, "-p", p.opts.Address)
+	}
+	cmd.Args = append(cmd.Args, args...)
+
 	log.Println("running", cmd.Args)
 	return cmd.Output()
 }

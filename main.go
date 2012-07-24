@@ -17,7 +17,7 @@ import (
 
 func main() {
 	fsdebug := flag.Bool("fs-debug", false, "switch on FS debugging")
-	p4port := flag.String("p4-server", "localhost:1666", "address for P4 server")
+	p4port := flag.String("p4-server", "", "address for P4 server")
 	p4binary := flag.String("p4-binary", "p4", "binary for P4 commandline client")
 	backingDir := flag.String("backing", "", "directory to store file contents.")
 	profile := flag.String("profile", "", "record cpu profile.")
@@ -28,7 +28,11 @@ func main() {
 	}
 	mountpoint := flag.Arg(0)
 
-	p4conn := &p4.Conn{Binary: *p4binary, Address: *p4port}
+	opts := p4.ConnOptions{
+		Binary:  *p4binary,
+		Address: *p4port,
+	}
+	p4conn := p4.NewConn(opts)
 
 	if *backingDir == "" {
 		d, err := ioutil.TempDir("", "p4fs")

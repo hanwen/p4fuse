@@ -6,7 +6,12 @@ import (
 
 // Assumes sample depot is running on localhost:1666, and p4 binary is in path.
 func TestDirs(t *testing.T) {
-	c := NewConn()
+	o := ConnOptions{
+		Binary:  "p4",
+		Address: "localhost:1666",
+	}
+
+	c := NewConn(o)
 	rs, err := c.Dirs([]string{"//depot/*@700"})
 	if err != nil {
 		t.Fatalf("p4.Dirs: %v", err)
