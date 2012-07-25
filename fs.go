@@ -229,7 +229,21 @@ var modes = map[string]uint32{
 	"xtext": fuse.S_IFREG | 0755,
 	"xbinary": fuse.S_IFREG | 0755,
 	"kxtext": fuse.S_IFREG | 0755,
-	"symlink": fuse.S_IFLNK, 
+	"symlink": fuse.S_IFLNK | 0777, 
+}
+
+func (f *p4File) Readlink(c *fuse.Context) ([]byte, fuse.Status) {
+	id := fmt.Sprintf("%s#%d", f.stat.DepotFile, f.stat.HeadRev)
+	content, err := f.fs.p4.Print(id)
+	if err != nil {
+		log.Printf("p4 print: %v", err)
+		return nil, fuse.EIO
+	}
+	if len(content) == 0 || content[len(content)-1] != '\n' {
+		log.Printf("terminating newline for symlink missing: %q", content)
+		return nil, fuse.EIO
+	}
+	return content[:len(content)-1], fuse.OK
 }
 
 func (f *p4File) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
