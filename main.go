@@ -51,8 +51,8 @@ func main() {
 		log.Fatalf("mount failed: %v", err)
 	}
 
-	conn.Debug = *fsdebug
-	mount.Debug = *fsdebug
+	conn.SetDebug(*fsdebug)
+	mount.SetDebug(*fsdebug)
 	log.Println("starting FUSE.")
 
 	if *profile != "" {
