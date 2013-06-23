@@ -29,7 +29,8 @@ import (
 )
 
 type P4Fs struct {
-	fuse.DefaultNodeFileSystem
+	fuse.NodeFileSystem
+	
 	backingDir string
 	root       *p4Root
 	p4         *p4.Conn
@@ -38,11 +39,15 @@ type P4Fs struct {
 // Creates a new P4FS
 func NewP4Fs(conn *p4.Conn, backingDir string) *P4Fs {
 	fs := &P4Fs{
-		p4: conn,
+		NodeFileSystem: fuse.NewDefaultNodeFileSystem(),
+		p4:             conn,
 	}
 
 	fs.backingDir = backingDir
-	fs.root = &p4Root{fs: fs}
+	fs.root = &p4Root{
+		FsNode: fuse.NewDefaultFsNode(),
+		fs: fs,
+	}
 	return fs
 }
 
@@ -55,24 +60,36 @@ func (fs *P4Fs) Root() fuse.FsNode {
 }
 
 func (fs *P4Fs) OnMount(conn *fuse.FileSystemConnector) {
-	fs.root.Inode().AddChild("head", fs.root.Inode().New(false, &p4Link{fs: fs}))
+	fs.root.Inode().AddChild("head", fs.root.Inode().New(false, fs.newP4Link()))
 }
 
 func (fs *P4Fs) newFolder(path string, change int) *p4Folder {
-	f := &p4Folder{fs: fs, path: path, change: change}
-	return f
+	return &p4Folder{
+		FsNode: fuse.NewDefaultFsNode(),
+		fs: fs,
+		path: path,
+		change: change,
+	}
 }
 
 func (fs *P4Fs) newFile(st *p4.Stat) *p4File {
-	f := &p4File{fs: fs, stat: *st}
+	f := &p4File{FsNode: fuse.NewDefaultFsNode(), fs: fs, stat: *st}
 	return f
+}
+
+func (fs *P4Fs) newP4Link() *p4Link {
+	return &p4Link{
+		FsNode: fuse.NewDefaultFsNode(),
+		fs: fs,
+	}
 }
 
 ////////////////
 type p4Link struct {
-	fuse.DefaultFsNode
-	fs *P4Fs
+	fuse.FsNode
+	fs   *P4Fs
 }
+
 
 func (f *p4Link) Deletable() bool {
 	return false
@@ -95,7 +112,7 @@ func (f *p4Link) Readlink(c *fuse.Context) ([]byte, fuse.Status) {
 }
 
 type p4Root struct {
-	fuse.DefaultFsNode
+	fuse.FsNode
 	fs *P4Fs
 
 	link *p4Link
@@ -120,7 +137,7 @@ func (r *p4Root) Lookup(out *fuse.Attr, name string, context *fuse.Context) (nod
 ////////////////
 
 type p4Folder struct {
-	fuse.DefaultFsNode
+	fuse.FsNode
 	change int
 	path   string
 	fs     *P4Fs
@@ -221,7 +238,7 @@ func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (n
 ////////////////
 
 type p4File struct {
-	fuse.DefaultFsNode
+	fuse.FsNode
 	stat p4.Stat
 	fs   *P4Fs
 
