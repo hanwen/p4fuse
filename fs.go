@@ -317,5 +317,5 @@ func (n *p4File) Open(flags uint32, context *fuse.Context) (file fuse.File, code
 	if err != nil {
 		return nil, fuse.ToStatus(err)
 	}
-	return &fuse.LoopbackFile{File: f}, fuse.OK
+	return fuse.NewLoopbackFile(f), fuse.OK
 }
