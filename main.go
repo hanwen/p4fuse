@@ -6,13 +6,14 @@ package main
 
 import (
 	"flag"
-	"github.com/hanwen/go-fuse/fuse"
 	"io/ioutil"
 	"log"
 	"os"
 	"runtime/pprof"
 
-	"p4fuse/p4"
+	"github.com/hanwen/p4fuse/p4"
+	"github.com/hanwen/go-fuse/fuse"
+	"github.com/hanwen/go-fuse/fuse/nodefs"
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 	}
 
 	fs := NewP4Fs(p4conn, *backingDir)
-	conn := fuse.NewFileSystemConnector(fs, fuse.NewFileSystemOptions())
+	conn := nodefs.NewFileSystemConnector(fs, nodefs.NewOptions())
 
 	mount := fuse.NewMountState(conn.RawFS())
 	if err := mount.Mount(mountpoint, nil); err != nil {

@@ -22,15 +22,16 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hanwen/go-fuse/fuse"
-
 	_ "crypto/md5"
-	"p4fuse/p4"
+
+	"github.com/hanwen/go-fuse/fuse"
+	"github.com/hanwen/go-fuse/fuse/nodefs"
+	"github.com/hanwen/p4fuse/p4"
 )
 
 type P4Fs struct {
-	fuse.NodeFileSystem
-	
+	nodefs.FileSystem
+
 	backingDir string
 	root       *p4Root
 	p4         *p4.Conn
@@ -39,14 +40,14 @@ type P4Fs struct {
 // Creates a new P4FS
 func NewP4Fs(conn *p4.Conn, backingDir string) *P4Fs {
 	fs := &P4Fs{
-		NodeFileSystem: fuse.NewDefaultNodeFileSystem(),
+		FileSystem: nodefs.NewDefaultFileSystem(),
 		p4:             conn,
 	}
 
 	fs.backingDir = backingDir
 	fs.root = &p4Root{
-		FsNode: fuse.NewDefaultFsNode(),
-		fs: fs,
+		Node: nodefs.NewDefaultNode(),
+		fs:     fs,
 	}
 	return fs
 }
@@ -55,47 +56,46 @@ func (fs *P4Fs) String() string {
 	return "P4Fuse"
 }
 
-func (fs *P4Fs) Root() fuse.FsNode {
+func (fs *P4Fs) Root() nodefs.Node {
 	return fs.root
 }
 
-func (fs *P4Fs) OnMount(conn *fuse.FileSystemConnector) {
+func (fs *P4Fs) OnMount(conn *nodefs.FileSystemConnector) {
 	fs.root.Inode().AddChild("head", fs.root.Inode().New(false, fs.newP4Link()))
 }
 
 func (fs *P4Fs) newFolder(path string, change int) *p4Folder {
 	return &p4Folder{
-		FsNode: fuse.NewDefaultFsNode(),
-		fs: fs,
-		path: path,
+		Node: nodefs.NewDefaultNode(),
+		fs:     fs,
+		path:   path,
 		change: change,
 	}
 }
 
 func (fs *P4Fs) newFile(st *p4.Stat) *p4File {
-	f := &p4File{FsNode: fuse.NewDefaultFsNode(), fs: fs, stat: *st}
+	f := &p4File{Node: nodefs.NewDefaultNode(), fs: fs, stat: *st}
 	return f
 }
 
 func (fs *P4Fs) newP4Link() *p4Link {
 	return &p4Link{
-		FsNode: fuse.NewDefaultFsNode(),
-		fs: fs,
+		Node: nodefs.NewDefaultNode(),
+		fs:     fs,
 	}
 }
 
 ////////////////
 type p4Link struct {
-	fuse.FsNode
-	fs   *P4Fs
+	nodefs.Node
+	fs *P4Fs
 }
-
 
 func (f *p4Link) Deletable() bool {
 	return false
 }
 
-func (f *p4Link) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
+func (f *p4Link) GetAttr(out *fuse.Attr, file nodefs.File, c *fuse.Context) fuse.Status {
 	out.Mode = fuse.S_IFLNK
 	return fuse.OK
 }
@@ -112,7 +112,7 @@ func (f *p4Link) Readlink(c *fuse.Context) ([]byte, fuse.Status) {
 }
 
 type p4Root struct {
-	fuse.FsNode
+	nodefs.Node
 	fs *P4Fs
 
 	link *p4Link
@@ -122,7 +122,7 @@ func (f *p4Root) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, status 
 	return []fuse.DirEntry{{Name: "head", Mode: fuse.S_IFLNK}}, fuse.OK
 }
 
-func (r *p4Root) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node fuse.FsNode, code fuse.Status) {
+func (r *p4Root) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node nodefs.Node, code fuse.Status) {
 	cl, err := strconv.ParseInt(name, 10, 64)
 	if err != nil {
 		return nil, fuse.ENOENT
@@ -137,7 +137,7 @@ func (r *p4Root) Lookup(out *fuse.Attr, name string, context *fuse.Context) (nod
 ////////////////
 
 type p4Folder struct {
-	fuse.FsNode
+	nodefs.Node
 	change int
 	path   string
 	fs     *P4Fs
@@ -165,7 +165,7 @@ func (f *p4Folder) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, statu
 	return stream, fuse.OK
 }
 
-func (f *p4Folder) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
+func (f *p4Folder) GetAttr(out *fuse.Attr, file nodefs.File, c *fuse.Context) fuse.Status {
 	out.Mode = fuse.S_IFDIR | 0755
 	return fuse.OK
 }
@@ -218,7 +218,7 @@ func (f *p4Folder) fetch() bool {
 	return true
 }
 
-func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node fuse.FsNode, code fuse.Status) {
+func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node nodefs.Node, code fuse.Status) {
 	f.fetch()
 
 	if st := f.files[name]; st != nil {
@@ -238,7 +238,7 @@ func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (n
 ////////////////
 
 type p4File struct {
-	fuse.FsNode
+	nodefs.Node
 	stat p4.Stat
 	fs   *P4Fs
 
@@ -247,10 +247,10 @@ type p4File struct {
 }
 
 var modes = map[string]uint32{
-	"xtext": fuse.S_IFREG | 0755,
+	"xtext":   fuse.S_IFREG | 0755,
 	"xbinary": fuse.S_IFREG | 0755,
-	"kxtext": fuse.S_IFREG | 0755,
-	"symlink": fuse.S_IFLNK | 0777, 
+	"kxtext":  fuse.S_IFREG | 0755,
+	"symlink": fuse.S_IFLNK | 0777,
 }
 
 func (f *p4File) Readlink(c *fuse.Context) ([]byte, fuse.Status) {
@@ -267,7 +267,7 @@ func (f *p4File) Readlink(c *fuse.Context) ([]byte, fuse.Status) {
 	return content[:len(content)-1], fuse.OK
 }
 
-func (f *p4File) GetAttr(out *fuse.Attr, file fuse.File, c *fuse.Context) fuse.Status {
+func (f *p4File) GetAttr(out *fuse.Attr, file nodefs.File, c *fuse.Context) fuse.Status {
 	if m, ok := modes[f.stat.HeadType]; ok {
 		out.Mode = m
 	} else {
@@ -324,7 +324,7 @@ func (f *p4File) Deletable() bool {
 	return false
 }
 
-func (n *p4File) Open(flags uint32, context *fuse.Context) (file fuse.File, code fuse.Status) {
+func (n *p4File) Open(flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
 	if flags&fuse.O_ANYWRITE != 0 {
 		return nil, fuse.EROFS
 	}
@@ -334,5 +334,5 @@ func (n *p4File) Open(flags uint32, context *fuse.Context) (file fuse.File, code
 	if err != nil {
 		return nil, fuse.ToStatus(err)
 	}
-	return fuse.NewLoopbackFile(f), fuse.OK
+	return nodefs.NewLoopbackFile(f), fuse.OK
 }
