@@ -41,13 +41,13 @@ type P4Fs struct {
 func NewP4Fs(conn *p4.Conn, backingDir string) *P4Fs {
 	fs := &P4Fs{
 		FileSystem: nodefs.NewDefaultFileSystem(),
-		p4:             conn,
+		p4:         conn,
 	}
 
 	fs.backingDir = backingDir
 	fs.root = &p4Root{
 		Node: nodefs.NewDefaultNode(),
-		fs:     fs,
+		fs:   fs,
 	}
 	return fs
 }
@@ -66,7 +66,7 @@ func (fs *P4Fs) OnMount(conn *nodefs.FileSystemConnector) {
 
 func (fs *P4Fs) newFolder(path string, change int) *p4Folder {
 	return &p4Folder{
-		Node: nodefs.NewDefaultNode(),
+		Node:   nodefs.NewDefaultNode(),
 		fs:     fs,
 		path:   path,
 		change: change,
@@ -81,7 +81,7 @@ func (fs *P4Fs) newFile(st *p4.Stat) *p4File {
 func (fs *P4Fs) newP4Link() *p4Link {
 	return &p4Link{
 		Node: nodefs.NewDefaultNode(),
-		fs:     fs,
+		fs:   fs,
 	}
 }
 

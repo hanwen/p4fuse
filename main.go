@@ -11,9 +11,9 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/hanwen/p4fuse/p4"
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
+	"github.com/hanwen/p4fuse/p4"
 )
 
 func main() {
@@ -47,8 +47,8 @@ func main() {
 	fs := NewP4Fs(p4conn, *backingDir)
 	conn := nodefs.NewFileSystemConnector(fs, nodefs.NewOptions())
 
-	mount := fuse.NewMountState(conn.RawFS())
-	if err := mount.Mount(mountpoint, nil); err != nil {
+	mount, err := fuse.NewServer(conn.RawFS(),mountpoint, nil)
+	if err != nil {
 		log.Fatalf("mount failed: %v", err)
 	}
 
@@ -65,5 +65,5 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	mount.Loop()
+	mount.Serve()
 }
