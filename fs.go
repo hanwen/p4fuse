@@ -61,7 +61,7 @@ func (fs *P4Fs) Root() nodefs.Node {
 }
 
 func (fs *P4Fs) OnMount(conn *nodefs.FileSystemConnector) {
-	fs.root.Inode().AddChild("head", fs.root.Inode().New(false, fs.newP4Link()))
+	fs.root.Inode().NewChild("head", false, fs.newP4Link())
 }
 
 func (fs *P4Fs) newFolder(path string, change int) *p4Folder {
@@ -129,7 +129,7 @@ func (r *p4Root) Lookup(out *fuse.Attr, name string, context *fuse.Context) (nod
 	}
 
 	node = r.fs.newFolder("", int(cl))
-	r.Inode().AddChild(name, r.Inode().New(true, node))
+	r.Inode().NewChild(name, true, node)
 	node.GetAttr(out, nil, context)
 	return node, fuse.OK
 }
@@ -229,7 +229,7 @@ func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (n
 		return nil, fuse.ENOENT
 	}
 
-	f.Inode().AddChild(name, f.Inode().New(true, node))
+	f.Inode().NewChild(name, true, node)
 
 	node.GetAttr(out, nil, context)
 	return node, fuse.OK
