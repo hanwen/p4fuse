@@ -30,17 +30,14 @@ import (
 )
 
 type P4Fs struct {
-	nodefs.FileSystem
-
 	backingDir string
 	root       *p4Root
 	p4         *p4.Conn
 }
 
 // Creates a new P4FS
-func NewP4Fs(conn *p4.Conn, backingDir string) *P4Fs {
+func NewP4FSRoot(conn *p4.Conn, backingDir string) nodefs.Node {
 	fs := &P4Fs{
-		FileSystem: nodefs.NewDefaultFileSystem(),
 		p4:         conn,
 	}
 
@@ -49,18 +46,10 @@ func NewP4Fs(conn *p4.Conn, backingDir string) *P4Fs {
 		Node: nodefs.NewDefaultNode(),
 		fs:   fs,
 	}
-	return fs
-}
-
-func (fs *P4Fs) String() string {
-	return "P4Fuse"
-}
-
-func (fs *P4Fs) Root() nodefs.Node {
 	return fs.root
 }
 
-func (fs *P4Fs) OnMount(conn *nodefs.FileSystemConnector) {
+func (fs *P4Fs) onMount() {
 	fs.root.Inode().NewChild("head", false, fs.newP4Link())
 }
 
@@ -116,6 +105,9 @@ type p4Root struct {
 	fs *P4Fs
 
 	link *p4Link
+}
+
+func (r *p4Root) OnMount(conn *nodefs.FileSystemConnector) {
 }
 
 func (f *p4Root) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {

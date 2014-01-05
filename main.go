@@ -44,8 +44,8 @@ func main() {
 		defer os.RemoveAll(d)
 	}
 
-	fs := NewP4Fs(p4conn, *backingDir)
-	conn := nodefs.NewFileSystemConnector(fs, nodefs.NewOptions())
+	root := NewP4FSRoot(p4conn, *backingDir)
+	conn := nodefs.NewFileSystemConnector(root, nodefs.NewOptions())
 
 	mount, err := fuse.NewServer(conn.RawFS(),mountpoint, nil)
 	if err != nil {
