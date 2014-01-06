@@ -114,16 +114,15 @@ func (f *p4Root) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, status 
 	return []fuse.DirEntry{{Name: "head", Mode: fuse.S_IFLNK}}, fuse.OK
 }
 
-func (r *p4Root) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node nodefs.Node, code fuse.Status) {
+func (r *p4Root) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node *nodefs.Inode, code fuse.Status) {
 	cl, err := strconv.ParseInt(name, 10, 64)
 	if err != nil {
 		return nil, fuse.ENOENT
 	}
 
-	node = r.fs.newFolder("", int(cl))
-	r.Inode().NewChild(name, true, node)
-	node.GetAttr(out, nil, context)
-	return node, fuse.OK
+	fsNode := r.fs.newFolder("", int(cl))
+	fsNode.GetAttr(out, nil, context)
+	return r.Inode().NewChild(name, true, fsNode), fuse.OK
 }
 
 ////////////////
@@ -210,9 +209,10 @@ func (f *p4Folder) fetch() bool {
 	return true
 }
 
-func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (node nodefs.Node, code fuse.Status) {
+func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (*nodefs.Inode, fuse.Status) {
 	f.fetch()
 
+	var node nodefs.Node
 	if st := f.files[name]; st != nil {
 		node = f.fs.newFile(st)
 	} else if f.folders[name] {
@@ -221,10 +221,8 @@ func (f *p4Folder) Lookup(out *fuse.Attr, name string, context *fuse.Context) (n
 		return nil, fuse.ENOENT
 	}
 
-	f.Inode().NewChild(name, true, node)
-
 	node.GetAttr(out, nil, context)
-	return node, fuse.OK
+	return f.Inode().NewChild(name, true, node), fuse.OK
 }
 
 ////////////////
