@@ -49,10 +49,6 @@ func NewP4FSRoot(conn *p4.Conn, backingDir string) nodefs.Node {
 	return fs.root
 }
 
-func (fs *P4Fs) onMount() {
-	fs.root.Inode().NewChild("head", false, fs.newP4Link())
-}
-
 func (fs *P4Fs) newFolder(path string, change int) *p4Folder {
 	return &p4Folder{
 		Node:   nodefs.NewDefaultNode(),
@@ -108,6 +104,7 @@ type p4Root struct {
 }
 
 func (r *p4Root) OnMount(conn *nodefs.FileSystemConnector) {
+	r.Inode().NewChild("head", false, r.fs.newP4Link())
 }
 
 func (f *p4Root) OpenDir(context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
