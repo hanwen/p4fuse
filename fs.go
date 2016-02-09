@@ -38,7 +38,7 @@ type P4Fs struct {
 // Creates a new P4FS
 func NewP4FSRoot(conn *p4.Conn, backingDir string) nodefs.Node {
 	fs := &P4Fs{
-		p4:         conn,
+		p4: conn,
 	}
 
 	fs.backingDir = backingDir
@@ -188,9 +188,20 @@ func (f *p4Folder) fetch() bool {
 	}
 
 	f.files = map[string]*p4.Stat{}
+	done := map[string]bool{}
 	for _, r := range files {
-		if stat, ok := r.(*p4.Stat); ok && stat.HeadAction != "delete" {
-			_, base := filepath.Split(stat.DepotFile)
+		stat, ok := r.(*p4.Stat)
+		if !ok {
+			continue
+		}
+
+		_, base := filepath.Split(stat.DepotFile)
+		if done[base] {
+			continue
+		}
+		done[base] = true
+
+		if stat.HeadAction != "delete" {
 			f.files[base] = stat
 		}
 	}
