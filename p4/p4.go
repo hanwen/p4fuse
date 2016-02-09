@@ -144,7 +144,7 @@ func interpretResult(in map[interface{}]interface{}, command string) Result {
 
 func (p *Conn) Fstat(paths []string) (results []Result, err error) {
 	r, err := p.RunMarshaled("fstat",
-		append([]string{"-Ol"}, paths...))
+		append([]string{"-Of", "-Ol"}, paths...))
 	return r, err
 }
 
@@ -153,12 +153,12 @@ func (p *Conn) Dirs(paths []string) ([]Result, error) {
 }
 
 func (p *Conn) Print(path string) (content []byte, err error) {
-	out, err := p.Output([]string{"print", path})
+	// -q : suppress header line.
+	out, err := p.Output([]string{"print", "-q", path})
 	if err != nil {
 		return nil, err
 	}
-	parts := bytes.SplitN(out, []byte{'\n'}, 2)
-	return parts[1], nil
+	return out, nil
 }
 
 func (p *Conn) Changes(paths []string) ([]Result, error) {
